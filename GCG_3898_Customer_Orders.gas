@@ -1,0 +1,406 @@
+Program.Sub.ScreenSU.Start
+gui.SS_Form1..create
+gui.SS_Form1..caption("Parts Sold by Customer")
+gui.SS_Form1..size(2850,1950)
+gui.SS_Form1..minx(0)
+gui.SS_Form1..miny(0)
+gui.SS_Form1..position(0,0)
+gui.SS_Form1..event(unload,Unload)
+gui.SS_Form1..alwaysontop(False)
+gui.SS_Form1..fontname("Arial")
+gui.SS_Form1..fontsize(8)
+gui.SS_Form1..forecolor(0)
+gui.SS_Form1..fontstyle(,,,,)
+gui.SS_Form1..BackColor(-2147483633)
+gui.SS_Form1..controlbox(True)
+gui.SS_Form1..maxbutton(False)
+gui.SS_Form1..minbutton(False)
+gui.SS_Form1..mousepointer(0)
+gui.SS_Form1..moveable(True)
+gui.SS_Form1..sizeable(False)
+gui.SS_Form1..ShowInTaskBar(True)
+gui.SS_Form1..titlebar(True)
+gui.SS_Form1.lbl_dtpNewCust.create(label,"Choose a date:",True,1725,200,1,100,135,True,0,Arial,8,-2147483633,0)
+gui.SS_Form1.lbl_dtpNewCust.defaultvalue("")
+gui.SS_Form1.lbl_dtpNewCust.controlgroup(0)
+gui.SS_Form1.dtpNewCust.create(datepicker)
+gui.SS_Form1.dtpNewCust.visible(True)
+gui.SS_Form1.dtpNewCust.size(2205,345)
+gui.SS_Form1.dtpNewCust.zorder(0)
+gui.SS_Form1.dtpNewCust.position(100,335)
+gui.SS_Form1.dtpNewCust.enabled(True)
+gui.SS_Form1.dtpNewCust.checkbox(False)
+gui.SS_Form1.dtpNewCust.defaultvalue("")
+gui.SS_Form1.dtpNewCust.controlgroup(0)
+gui.SS_Form1.cmdSubmit.create(button)
+gui.SS_Form1.cmdSubmit.caption("Print")
+gui.SS_Form1.cmdSubmit.visible(True)
+gui.SS_Form1.cmdSubmit.size(1000,360)
+gui.SS_Form1.cmdSubmit.zorder(0)
+gui.SS_Form1.cmdSubmit.position(100,990)
+gui.SS_Form1.cmdSubmit.enabled(True)
+gui.SS_Form1.cmdSubmit.fontname("Arial")
+gui.SS_Form1.cmdSubmit.fontsize(8)
+gui.SS_Form1.cmdSubmit.event(click,cmdsubmit_click)
+gui.SS_Form1.cmdSubmit.defaultvalue("")
+gui.SS_Form1.cmdSubmit.controlgroup(0)
+
+
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+Variable.UDT.uReport.Define("Invoice",String,Invoice)
+Variable.UDT.uReport.Define("Order_No",String,Order_No)
+Variable.UDT.uReport.Define("Order_Line",String,Order_Line)
+Variable.UDT.uReport.Define("Customer",String,Customer)
+Variable.UDT.uReport.Define("Part",String,Part)
+Variable.UDT.uReport.Define("Description",String,Description)
+Variable.UDT.uReport.Define("Qty_Shipped",String,Qty_Shipped)
+Variable.UDT.uReport.Define("New_Or_Existing",String,Customer_Type)
+Variable.uGlobal.uReport.Declare("uReport")
+Variable.UDT.uCustomer.Define("Customer",String)
+Variable.uGlobal.uCustomer.Declare("uCustomer")
+Variable.UDT.uTemp.Define("TempField",String)
+Variable.uGlobal.uTemp.Declare("uTemp")
+Variable.Global.iReportID.Declare(Long,-1)
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+F.Intrinsic.Control.SetErrorHandler("Main_Err")
+F.Intrinsic.Control.ClearErrors
+
+'ERM
+'Quote4997
+'10/10/2013
+
+V.Local.sError.Declare(String)
+V.Local.bTableExist.Declare(Boolean,False)
+
+F.ODBC.Connection!con.OpenConnection(V.Ambient.PDSN,V.Ambient.PUser,V.Ambient.PPass)
+
+'check if custom table is setup in pervasive
+F.ODBC.Connection!con.TableExists("GCG_3898_Cust_Orders",V.Local.bTableExist)
+F.Intrinsic.Control.If(V.Local.bTableExist,=,False)
+	F.Intrinsic.UI.Msgbox("GCG_Customer_Orders.sql could not be found.  Please install the sql table before running this program!")
+	F.Intrinsic.Control.CallSub(Unload)
+F.Intrinsic.Control.EndIf
+
+'check if custom report is setup in business intelligence
+F.Global.BI.GetIDFromName("GCG_3898_Customer_Orders.rpt",V.Global.iReportID)
+F.Intrinsic.Control.If(V.Global.iReportID,=,-1)
+	F.Intrinsic.UI.Msgbox("GCG_3898_Customer_Orders.rpt could not be found.  Please install the report before running this program!")
+	F.Intrinsic.Control.CallSub(Unload)
+F.Intrinsic.Control.EndIf
+
+'Gui.SS_Form1.dtpNewCust.Value("2013-01-01")
+Gui.SS_Form1..Show
+
+F.Intrinsic.Control.Label("Main_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_3898_Customer_Orders.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.CallSub(Unload)
+Function.Intrinsic.Control.EndIf
+
+
+Program.Sub.Main.End
+
+Program.Sub.Unload.Start
+F.Intrinsic.Control.End
+
+Program.Sub.Unload.End
+
+program.sub.cmdsubmit_click.start
+F.Intrinsic.Control.SetErrorHandler("cmdsubmit_click_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+
+F.Intrinsic.Control.CallSub(Newcust)
+F.Intrinsic.Control.CallSub(Existingcust)
+F.Intrinsic.Control.CallSub(Report)
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("cmdsubmit_click_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_3898_Customer_Orders.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.CallSub(Unload)
+Function.Intrinsic.Control.EndIf
+
+
+program.sub.cmdsubmit_click.end
+
+Program.Sub.NewCust.Start
+F.Intrinsic.Control.SetErrorHandler("NewCust_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+V.Local.sSQL.Declare(String)
+V.Local.sCustDate.Declare(String)
+V.uGlobal.uTemp.Redim(-1,-1)
+V.uGlobal.uCustomer.Redim(-1,-1)
+V.uGlobal.uReport.Redim(-1,-1)
+V.Local.i.Declare(Long)
+V.Local.iUB.Declare(Long,-1)
+V.Local.sRet.Declare(String)
+
+F.Intrinsic.UI.InvokeWaitDialog("Loading...","Please Wait")
+
+'find new customers
+F.Intrinsic.Variable.SetUDTFieldReference(V.uGlobal.uTemp!TempField,"Customer")
+F.Intrinsic.String.Format(V.Screen.SS_Form1!dtpNewCust.Value,"YYYY-MM-DD",V.Local.sCustDate)
+F.Intrinsic.String.Build("Select Customer, Date_New_Customer From V_Customer_Sales Where Date_New_Customer >= '{0}' Order by {1}",V.Local.sCustDate,"Customer",V.Local.sSQL)
+F.ODBC.Connection!con.OpenLocalRecordsetRO("rst",V.Local.sSQL)
+F.Intrinsic.Control.If(V.ODBC.con!rst.EOF,=,False)
+	F.Intrinsic.Variable.LoadUDTFromRecordset("con","rst","v.uGlobal.uTemp",False)
+F.Intrinsic.Control.EndIf
+F.ODBC.con!rst.Close
+
+'If new customers do not exist, exitsub
+F.Intrinsic.Control.If(V.uGlobal.uTemp.UBound,=,-1)
+	F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.EndIf
+
+'find new customers with a invoice
+F.Intrinsic.Variable.SetUDTFieldReference(V.uGlobal.uCustomer!Customer,"Customer")
+F.Intrinsic.String.Build("Select DISTINCT(Customer) as Customer From V_Order_Hist_Line Where Date_Invoice >= '{0}' Order By {1}",V.Local.sCustDate,"Date_Invoice",V.Local.sSQL)
+F.ODBC.Connection!con.OpenLocalRecordsetRO("rst",V.Local.sSQL)
+F.Intrinsic.Control.If(V.ODBC.con!rst.EOF,=,False)
+	F.Intrinsic.Variable.LoadUDTFromRecordset("con","rst","v.uGlobal.uCustomer",False)
+F.Intrinsic.Control.EndIf
+F.ODBC.con!rst.Close
+
+'If new customers do not have any invoices, exitsub
+F.Intrinsic.Control.If(V.uGlobal.uCustomer.UBound,=,-1)
+	F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.EndIf
+
+'separate new customers with and without invoices
+F.Intrinsic.Variable.UDTFlagAll(V.uGlobal.uCustomer)
+F.Intrinsic.Control.For(V.Local.i,V.uGlobal.uCustomer.LBound,V.uGlobal.uCustomer.UBound,1)
+	F.Intrinsic.Variable.UDTMultiSeek(V.uGlobal.uTemp!TempField,V.uGlobal.uCustomer(v.Local.i)!Customer,V.Local.sRet)
+	F.Intrinsic.Control.If(V.Local.sRet,<>,"")
+		F.Intrinsic.Variable.UDTMultiUnFlag(V.uGlobal.uCustomer!Customer,V.uGlobal.uTemp(v.Local.sRet)!TempField)
+	F.Intrinsic.Control.EndIf
+F.Intrinsic.Control.Next(V.Local.i)
+
+'remove customers without invoices
+F.Intrinsic.Variable.UDTDeleteFlagged(V.uGlobal.uCustomer)
+
+'If new customers do not have any invoices, exitsub
+F.Intrinsic.Control.If(V.uGlobal.uCustomer.UBound,=,-1)
+	F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.EndIf
+
+'gather data for new customers with invoice(s)
+F.Intrinsic.Control.For(V.Local.i,V.uGlobal.uCustomer.LBound,V.uGlobal.uCustomer.UBound,1)
+	F.Intrinsic.UI.ChangeWaitStatus("Loading new customer data...",V.Local.i,V.uGlobal.uCustomer.LBound,V.uGlobal.uCustomer.UBound)
+	F.Intrinsic.String.Build("Select * From V_Order_Hist_Line Where Date_Invoice >= '{0}' and customer = '{1}' Order By {2}",V.Local.sCustDate,V.uGlobal.uCustomer(v.Local.i)!Customer,"date_invoice",V.Local.sSQL)
+	F.ODBC.Connection!con.OpenLocalRecordsetRO("rst",V.Local.sSQL)
+	F.Intrinsic.Control.If(V.ODBC.con!rst.EOF,=,False)
+		F.Intrinsic.Control.DoUntil(V.ODBC.con!rst.EOF,=,True)
+			F.Intrinsic.Math.Add(V.Local.iUB,1,V.Local.iUB)
+			F.Intrinsic.Control.If(V.uGlobal.uReport.UBound,=,-1)
+				V.uGlobal.uReport.Redim(0,0)
+			F.Intrinsic.Control.Else
+				V.uGlobal.uReport.RedimPreserve(0,V.Local.iUB)
+			F.Intrinsic.Control.EndIf
+			V.uGlobal.uReport(v.Local.iUB)!Invoice.Set(V.ODBC.con!rst.FieldValTrim!INVOICE)
+			V.uGlobal.uReport(v.Local.iUB)!Order_No.Set(V.ODBC.con!rst.FieldValTrim!ORDER_NO)
+			V.uGlobal.uReport(v.Local.iUB)!Order_Line.Set(V.ODBC.con!rst.FieldValTrim!ORDER_LINE)
+			V.uGlobal.uReport(v.Local.iUB)!Customer.Set(V.uGlobal.uCustomer(v.Local.i)!Customer)
+			V.uGlobal.uReport(v.Local.iUB)!Part.Set(V.ODBC.con!rst.FieldValTrim!PART)
+			V.uGlobal.uReport(v.Local.iUB)!Description.Set(V.ODBC.con!rst.FieldValTrim!DESCRIPTION)
+			V.uGlobal.uReport(v.Local.iUB)!Qty_Shipped.Set(V.ODBC.con!rst.FieldValTrim!QTY_SHIPPED)
+			'N is for NEW customer
+			V.uGlobal.uReport(v.Local.iUB)!New_Or_Existing.Set("N")
+			F.ODBC.con!rst.MoveNext
+		F.Intrinsic.Control.Loop
+	F.Intrinsic.Control.EndIf
+	F.ODBC.con!rst.Close
+F.Intrinsic.Control.Next(V.Local.i)
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("NewCust_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_3898_Customer_Orders.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.CallSub(Unload)
+Function.Intrinsic.Control.EndIf
+
+
+Program.Sub.NewCust.End
+
+Program.Sub.ExistingCust.Start
+F.Intrinsic.Control.SetErrorHandler("ExistingCust_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+V.Local.sSQL.Declare(String)
+V.Local.sCustDate.Declare(String)
+V.uGlobal.uTemp.Redim(-1,-1)
+V.uGlobal.uCustomer.Redim(-1,-1)
+V.Local.i.Declare(Long)
+V.Local.iUB.Declare(Long,-1)
+V.Local.sRet.Declare(String)
+V.Local.sPart.Declare(String)
+V.Local.sFiveYearsAgoDate.Declare(String)
+
+F.Intrinsic.UI.InvokeWaitDialog("Loading...","Please Wait...")
+
+'find existing customers
+F.Intrinsic.Variable.SetUDTFieldReference(V.uGlobal.uTemp!TempField,"Customer")
+F.Intrinsic.String.Format(V.Screen.SS_Form1!dtpNewCust.Value,"YYYY-MM-DD",V.Local.sCustDate)
+F.Intrinsic.String.Build("Select Customer, Date_New_Customer From V_Customer_Sales Where Date_New_Customer < '{0}' Order by {1}",V.Local.sCustDate,"Customer",V.Local.sSQL)
+F.ODBC.Connection!con.OpenLocalRecordsetRO("rst",V.Local.sSQL)
+F.Intrinsic.Control.If(V.ODBC.con!rst.EOF,=,False)
+	F.Intrinsic.Variable.LoadUDTFromRecordset("con","rst","v.uGlobal.uTemp",False)
+F.Intrinsic.Control.EndIf
+F.ODBC.con!rst.Close
+
+'If  existing customers do not exist, exitsub
+F.Intrinsic.Control.If(V.uGlobal.uTemp.UBound,=,-1)
+	F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.EndIf
+
+'find customers with a invoice
+F.Intrinsic.Variable.SetUDTFieldReference(V.uGlobal.uCustomer!Customer,"Customer")
+F.Intrinsic.String.Build("Select DISTINCT(Customer) as Customer From V_Order_Hist_Line Where Date_Invoice >= '{0}' Order By {1}",V.Local.sCustDate,"Date_Invoice",V.Local.sSQL)
+F.ODBC.Connection!con.OpenLocalRecordsetRO("rst",V.Local.sSQL)
+F.Intrinsic.Control.If(V.ODBC.con!rst.EOF,=,False)
+	F.Intrinsic.Variable.LoadUDTFromRecordset("con","rst","v.uGlobal.uCustomer",False)
+F.Intrinsic.Control.EndIf
+F.ODBC.con!rst.Close
+
+'If existing customers do not have any invoices, exitsub
+F.Intrinsic.Control.If(V.uGlobal.uCustomer.UBound,=,-1)
+	F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.EndIf
+
+'separate customers with and without invoices
+F.Intrinsic.Variable.UDTFlagAll(V.uGlobal.uCustomer)
+F.Intrinsic.Control.For(V.Local.i,V.uGlobal.uCustomer.LBound,V.uGlobal.uCustomer.UBound,1)
+	F.Intrinsic.Variable.UDTMultiSeek(V.uGlobal.uTemp!TempField,V.uGlobal.uCustomer(v.Local.i)!Customer,V.Local.sRet)
+	F.Intrinsic.Control.If(V.Local.sRet,<>,"")
+		F.Intrinsic.Variable.UDTMultiUnFlag(V.uGlobal.uCustomer!Customer,V.uGlobal.uTemp(v.Local.sRet)!TempField)
+	F.Intrinsic.Control.EndIf
+F.Intrinsic.Control.Next(V.Local.i)
+
+'remove customers without invoices
+F.Intrinsic.Variable.UDTDeleteFlagged(V.uGlobal.uCustomer)
+
+'If new customers do not have any invoices, exitsub
+F.Intrinsic.Control.If(V.uGlobal.uCustomer.UBound,=,-1)
+	F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.EndIf
+
+'F.Intrinsic.Debug.InvokeDebugger
+'F.Intrinsic.Debug.Stop
+'get 5 year ago date
+F.Intrinsic.Date.DateAdd("YYYY","-5",V.Local.sCustDate,V.Local.sFiveYearsAgoDate)
+F.Intrinsic.String.Format(V.Local.sFiveYearsAgoDate,"YYYY-MM-DD",V.Local.sFiveYearsAgoDate)
+
+' gather invoice records for existing customers
+F.Intrinsic.Control.For(V.Local.i,V.uGlobal.uCustomer.LBound,V.uGlobal.uCustomer.UBound,1)
+
+	F.Intrinsic.UI.ChangeWaitStatus("Loading existing customer data...",V.Local.i,V.uGlobal.uCustomer.LBound,V.uGlobal.uCustomer.UBound)
+	V.uGlobal.uTemp.Redim(-1,-1)
+	'gather all parts for customer within the last 5 years
+	F.Intrinsic.Variable.SetUDTFieldReference(V.uGlobal.uTemp!TempField,"PART")
+	F.Intrinsic.String.Build("Select DISTINCT(PART) as PART From V_Order_Hist_Line Where Date_Invoice between '{0}' and '{1}' and customer = '{2}'",V.Local.sFiveYearsAgoDate,V.Local.sCustDate,V.uGlobal.uCustomer(v.Local.i)!Customer,V.Local.sSQL)
+	F.ODBC.Connection!con.OpenLocalRecordsetRO("rst",V.Local.sSQL)
+	F.Intrinsic.Control.If(V.ODBC.con!rst.EOF,=,False)
+		F.Intrinsic.Variable.LoadUDTFromRecordset("con","rst","v.uGlobal.uTemp",False)
+	F.Intrinsic.Control.EndIf
+	F.ODBC.con!rst.Close
+	
+	'if the part exist in a invoice from 5 years ago, and in a current set of invoices, do not show that part on the report
+	F.Intrinsic.String.Build("Select * From V_Order_Hist_Line Where Date_Invoice >= '{0}' and customer = '{1}' Order By {2}",V.Local.sCustDate,V.uGlobal.uCustomer(v.Local.i)!Customer,"Date_Invoice",V.Local.sSQL)
+	F.ODBC.Connection!con.OpenLocalRecordsetRO("rst",V.Local.sSQL)
+	F.Intrinsic.Control.If(V.ODBC.con!rst.EOF,=,False)
+		F.Intrinsic.Control.DoUntil(V.ODBC.con!rst.EOF,=,True)
+			V.Local.sPart.Set(V.ODBC.con!rst.FieldVal!PART)
+			F.Intrinsic.Variable.UDTMultiSeek(V.uGlobal.uTemp!TempField,V.Local.sPart,V.Local.sRet)
+			F.Intrinsic.Control.If(V.Local.sRet,=,"")
+				V.Local.iUB.Set(V.uGlobal.uReport.UBound)
+				F.Intrinsic.Math.Add(V.Local.iUB,1,V.Local.iUB)
+				F.Intrinsic.Control.If(V.Local.iUB,=,0)
+					V.uGlobal.uReport.Redim(0,0)
+				F.Intrinsic.Control.Else
+					V.uGlobal.uReport.RedimPreserve(0,V.Local.iUB)
+				F.Intrinsic.Control.EndIf
+				V.uGlobal.uReport(v.Local.iUB)!Invoice.Set(V.ODBC.con!rst.FieldValTrim!INVOICE)
+				V.uGlobal.uReport(v.Local.iUB)!Order_No.Set(V.ODBC.con!rst.FieldValTrim!ORDER_NO)
+				V.uGlobal.uReport(v.Local.iUB)!Order_Line.Set(V.ODBC.con!rst.FieldValTrim!ORDER_LINE)
+				V.uGlobal.uReport(v.Local.iUB)!Customer.Set(V.uGlobal.uCustomer(v.Local.i)!Customer)
+				V.uGlobal.uReport(v.Local.iUB)!Part.Set(V.ODBC.con!rst.FieldValTrim!PART)
+				V.uGlobal.uReport(v.Local.iUB)!Description.Set(V.ODBC.con!rst.FieldValTrim!DESCRIPTION)
+				V.uGlobal.uReport(v.Local.iUB)!Qty_Shipped.Set(V.ODBC.con!rst.FieldValTrim!QTY_SHIPPED)
+				'E is for Existing customer
+				V.uGlobal.uReport(v.Local.iUB)!New_Or_Existing.Set("E")
+			F.Intrinsic.Control.EndIf
+			F.ODBC.con!rst.MoveNext
+		F.Intrinsic.Control.Loop
+	F.Intrinsic.Control.EndIf
+	F.ODBC.con!rst.Close
+F.Intrinsic.Control.Next(V.Local.i)
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("ExistingCust_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_3898_Customer_Orders.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.CallSub(Unload)
+Function.Intrinsic.Control.EndIf
+
+
+Program.Sub.ExistingCust.End
+
+Program.Sub.Report.Start
+F.Intrinsic.Control.SetErrorHandler("Report_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+V.Local.sSQL.Declare(String)
+V.Local.iReportID.Declare(Long)
+
+F.Intrinsic.UI.CloseWaitDialog
+
+F.Intrinsic.Control.If(V.uGlobal.uReport.UBound,=,-1)
+	F.Intrinsic.UI.Msgbox("No customers found for the date selected.")
+	F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.EndIf
+
+F.ODBC.Connection!con.Execute("Delete From GCG_3898_Cust_Orders")
+F.ODBC.Connection!con.OpenLocalRecordsetRW("rst","Select * From GCG_3898_Cust_Orders")
+F.Intrinsic.Variable.SaveUDTToRecordset("con","rst","v.uGlobal.uReport")
+F.ODBC.con!rst.Close
+
+F.Global.BI.PrintReport(V.Global.iReportID,0,"","","",False)
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("Report_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_3898_Customer_Orders.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.CallSub(Unload)
+Function.Intrinsic.Control.EndIf
+
+
+Program.Sub.Report.End
+
+Program.Sub.Comments.Start
+${$0$}$GCG_Customer_Orders$}$ERIC$}$10/9/2013
+Program.Sub.Comments.End
+Program.Sub.ScreenSS.Start
+SS_Form1{{CAPTION::Part Sold by Customer
+SS_Form1.CTRL{{NAME::dtpNewCust\\TYPE::6\\CAPTION::Customer inception date\\GROUP::-1\\BROWSER::0\\SIZE::1
+SS_Form1.CTRL{{NAME::cmdSubmit\\TYPE::5\\CAPTION::Print\\GROUP::-1\\BROWSER::0\\SIZE::1
+
+Program.Sub.ScreenSS.End
+
